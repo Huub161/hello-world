@@ -15,12 +15,27 @@
 #include <stdlib.h>
 
 #define GRAVITY 9.81
-#define MAX_PARTICLES 3000
+#define MAX_PARTICLES 2200
 
 #define B_CONST  0.05
 #define K_CONST  100.0
 #define DT       0.001
 #define PI_CONST 3.1415
+
+#define MAX_CELLS 1233
+#define NROWS 44
+#define NCOLUMNS 28
+#define MAX_PARTICLES_9CEL 50
+
+//
+// struct for the linked list to store particles in for the calculations
+//
+
+typedef struct
+{
+  int head[MAX_CELLS], next[MAX_PARTICLES];
+} LINKED_LIST;
+
 
 //
 // Definition of new structure Vec2 (vector with two components
@@ -40,8 +55,10 @@ typedef struct
   Vec2     r,v,a,f;  // position, velocity, accelleration, force
   double   radius,mass;
   int      type;
-
+  int	   cellnumber;
 } Particle;
+
+
 
 //
 // Definition of new type Plist (list of particles, unordered)
@@ -122,7 +139,8 @@ void open_door
 
 double solve
 
-  ( Plist           *p    );
+  ( LINKED_LIST		*linked_list ,
+	Plist           *p           );
 
 
 //-----------------------------------------------------------------------------
@@ -133,7 +151,8 @@ double solve
 
 void calc_interaction
   
-  ( Plist           *plist );
+  ( Plist           *plist        , 
+    LINKED_LIST     *linked_list  );
  
 //-----------------------------------------------------------------------------
 //  Calculate the interaction force between two partcles
@@ -190,5 +209,30 @@ void show_info
   ( char*    svgfile ,
     double   ekin    ,
     int      ntot    );
+
+
+// ALSO ADDED THESE, was missing for some reason
+void check_particles
+
+  ( Plist 		*p );
+
+
+void reset_list
+
+  ( LINKED_LIST *linked_list );
+
+
+void fill_linkedlist
+
+	( LINKED_LIST	*linked_list ,
+	  Plist         *plist       );
+// STOPPED ADDING THESE
+
+int possible_contact 
+
+  ( Plist       *plist                     , 
+    LINKED_LIST *linked_list               ,
+    int         ipar                       , 
+    int*        pcp                        );
 
 #endif

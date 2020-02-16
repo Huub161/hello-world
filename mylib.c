@@ -1,9 +1,12 @@
 /*
- * Library for silo.c
+ * Silo.c
  *
  * Multiple particle dynamics simulation
  *
  * (c) 2016 Joris Remmers TU/e
+ * 
+ * Edited by S.A. de Milliano
+ * Edited by H. Wezenbeek
  */
 
 
@@ -44,6 +47,72 @@ void plot
   fprintf(of,"</g>\n</g>\n</svg>\n");
   fclose(of);
 }
+
+//----------------------------------------------------------
+//
+//----------------------------------------------------------
+
+void reset_list
+
+  ( LINKED_LIST *linked_list )
+{
+  for ( int i = 0; i < MAX_CELLS; i++ )
+  {
+	linked_list -> head[i] = -1;
+  }
+  for ( int i = 0; i < MAX_PARTICLES; i++ )
+  {
+	linked_list -> next[i] = -1;
+  }
+}
+
+//----------------------------------------------------------
+//
+//----------------------------------------------------------
+
+void fill_linkedlist
+
+  ( LINKED_LIST     *linked_list ,
+    Plist           *pl )
+
+{
+  int cell;
+  int row;
+  int colomn;
+
+  Vec2 position;
+
+  reset_list( linked_list );
+
+  for( int iPar = 0; iPar < pl->ntot; iPar++)
+  {
+    position = pl -> p[iPar].r;		
+
+    colomn = (position.x + 1.3) * NCOLUMNS/2.6;
+
+    row = position.y * NROWS/5;
+    cell = colomn + NCOLUMNS * row;
+
+    if ( linked_list -> head[cell] == -1 )
+    {
+	  linked_list -> head[cell] = iPar;
+    }
+    else
+    {
+      int a = linked_list -> head[cell];
+ 
+      while ( linked_list -> next[a] != -1 )
+      {
+        a = linked_list -> next[a];
+      }
+
+      linked_list -> next[a] = iPar;
+    }
+
+    pl -> p[iPar].cellnumber = cell;
+  }
+}
+
 
 
 //----------------------------------------------------------
@@ -106,18 +175,30 @@ void read_input
 
 void calc_interaction
 
-  ( Plist         *pl )
+  ( Plist         *pl          ,
+    LINKED_LIST   *linked_list )
  
 {
-  int      iPar,jPar;
+  int      iPar,jPar,i;
+  int      pcp[MAX_PARTICLES_9CEL]; // ADDED possible contact particles
+  int      amount_pcp=0;
  
   const int nPar = pl->ntot;
   
-  for( iPar = 0 ; iPar < nPar ; iPar++ )   
-  {
-    for ( jPar = iPar+1 ; jPar < nPar ; jPar++ )
+  for( iPar = 0 ; iPar < nPar ; iPar++ )
+   {
+
+amount_pcp = possible_contact   ( pl , linked_list , iPar , pcp);
+
+    for ( i=0 ; i< amount_pcp; i++)
     {
-      int_force( &pl->p[iPar] , &pl->p[jPar] );    
+// Als regels 195, 196 en 199 aan staan, lijkt de berekening meer op de originele, maar dit geeft een gekke melding op het eind. 
+//wellicht zit hier ook het verschil in van de kinetic energy. (hij zou er ook sneller van moeten worden)
+//			if (pcp[i]>iPar) 
+//			{
+               jPar = pcp[i];
+               int_force( &pl->p[iPar] , &pl->p[jPar] );
+//			}    
     }
   }
 }
@@ -264,7 +345,8 @@ void init_particle
 
 double solve
 
-  ( Plist   *pl   )
+  ( LINKED_LIST *linked_list ,
+	Plist       *pl          )
 
 {
   const double dt2 = DT * DT;
@@ -286,8 +368,11 @@ double solve
     pl->p[iPar].f.x = 0.;
     pl->p[iPar].f.y = 0.;
   }
-  
-  calc_interaction( pl );
+
+
+  fill_linkedlist( linked_list , pl );  
+
+  calc_interaction( pl, linked_list );
   
   add_gravity( pl );
      
@@ -438,3 +523,69 @@ void show_info
   printf("Kinetic energy      : %f\n",ekin);
   printf("Number of particles : %d\n\n",ntot);
 }
+
+
+//----------------------------------------------------------
+// find out which particles may possibly be in contact 
+// return those in a array possible_contact_particles
+//----------------------------------------------------------
+
+int possible_contact 
+
+  ( Plist       *pl          , 
+    LINKED_LIST *linked_list ,
+    int         partnr      , 
+    int*        possible_contact_particles ) //Als je van deze waarde een pointer kan maken, kan dat de snelheid aanzienlijk tengoede komen.
+
+{
+  int i,j,k,n;
+//  int inside_cell = pl -> p[partnr].cellnumber;
+  int cell;
+  
+  j=0;
+  n=0;
+
+  for( i=-1 ; i<2 ; i++)
+	{
+
+	for( k=-NCOLUMNS ; k < NCOLUMNS*2 ; k=k+NCOLUMNS)
+		{
+		cell = pl -> p[partnr].cellnumber + i + k;
+			if (cell >= 0 && cell <= MAX_CELLS)
+			  {
+			    if (linked_list->head[cell] != -1) // 
+			    {
+				    if (linked_list->head[cell] == partnr)
+				    {
+					    n=linked_list->next[linked_list->head[cell]];
+				    }
+				    else
+				    {
+				        possible_contact_particles[j] = linked_list->head[cell];
+				        j++;
+				        n=linked_list->next[linked_list->head[cell]];
+				    }
+					
+				    while (n != -1)
+					    {
+						    if ( n==partnr)
+						    {
+							    n=linked_list->next[n];
+						    }
+						    else
+						    {
+							    possible_contact_particles[j] = n;
+							    j++;
+							    n=linked_list->next[n];
+						    }
+
+					    }
+
+			    }
+			  }
+		}
+	}
+  return j;
+
+}
+//----------------------------------------------------------
