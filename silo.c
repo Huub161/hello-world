@@ -4,11 +4,16 @@
  * Multiple particle dynamics simulation
  *
  * (c) 2016 Joris Remmers TU/e
+ * 
+ * Edited by S.A. de Milliano
+ * TO-DO:
+ * alter interactions to only compare to particles in neighbouring cells
  */
 
 
 #include "mylib.h"
 #include <time.h>
+
 
 int main( void )
 
@@ -17,23 +22,27 @@ int main( void )
   int          iPlot = 0;            // Plot counter
   char         svgfile[20];          // File name for output
   double       ekin  = 0.0;          // Kinetic Energy
- 
- clock_t tic = clock();
- 
+  
+clock_t tic = clock();
+  
   Plist        plist;
-     
+
+  LINKED_LIST		linked_list;
+
   read_input( "silo.dat" , &plist );
-    
+  
+   
   while( iCyc < 100 || ekin > 1.0e-8 )
   {
     iCyc++;
+
         
     if ( iCyc%50 == 0 && plist.ntot < plist.nwall + plist.ndoor + 2000 && plist.ndoor > 0 )
     {	
       add_particle( &plist );
-    }
-    
-    ekin = solve( &plist );
+    } 
+
+    ekin = solve( &linked_list ,  &plist );
      
     check_particles( &plist );
  
